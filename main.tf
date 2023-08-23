@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: MPL-2.0
 
 terraform {
+  cloud {
+    organization = "fcamba-org"
+
+    workspaces {
+      name = "tfc-aws-sc-config"
+    }
+  }
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -19,6 +26,7 @@ terraform {
 }
 
 provider "aws" {
+  region = var.region
   default_tags {
     tags = {
       "Projects" = "aws-service-catalog-engine"
@@ -54,7 +62,24 @@ resource "aws_servicecatalog_portfolio" "portfolio" {
 
 # An example product
 module "example_product" {
-  source = "./example-product"
+  source = "./products/example-product"
+
+  # ARNs of Lambda functions that need to be able to assume the IAM Launch Role
+  parameter_parser_role_arn  = module.terraform_cloud_reference_engine.parameter_parser_role_arn
+  send_apply_lambda_role_arn = module.terraform_cloud_reference_engine.send_apply_lambda_role_arn
+
+  # AWS Service Catalog portfolio you would like to add this product to
+  service_catalog_portfolio_ids = [aws_servicecatalog_portfolio.portfolio.id]
+
+  # Variables for authentication to AWS via Dynamic Credentials
+  tfc_hostname     = module.terraform_cloud_reference_engine.tfc_hostname
+  tfc_organization = module.terraform_cloud_reference_engine.tfc_organization
+  tfc_provider_arn = module.terraform_cloud_reference_engine.oidc_provider_arn
+
+}
+
+module "ec2_product" {
+  source = "./products/ec2-product"
 
   # ARNs of Lambda functions that need to be able to assume the IAM Launch Role
   parameter_parser_role_arn  = module.terraform_cloud_reference_engine.parameter_parser_role_arn
